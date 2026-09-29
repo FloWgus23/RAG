@@ -1,127 +1,111 @@
-"""
-ui_style.py — ธีม CSS (โทนสีเดียว indigo, ฟอนต์รองรับไทย-อังกฤษ) และตัว render bubble แชทของ Flowchat
-
-หมายเหตุสำคัญ: ต้องลบบรรทัดว่างออกจาก CSS ก่อนส่งเข้า st.markdown เสมอ (ดู inject_css())
-เพราะ Streamlit ใช้ตัวแปลง markdown แบบ CommonMark ซึ่งจะตัดจบ "raw HTML block" ทันทีที่เจอบรรทัดว่าง
-แล้วเอาเนื้อหาที่เหลือไปแสดงเป็นข้อความธรรมดาแทนการฝัง <style> จริง
-"""
-
+import html
 import streamlit as st
 
-from config import MODE_LABELS
-
-_CSS = """
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root{
-    --primary:#5B5BE6;
-    --primary-dark:#4746C7;
-    --primary-soft:#EEEEFC;
-    --primary-grad:linear-gradient(135deg, #5B5BE6 0%, #7A6FF0 100%);
-    --graph-accent:#0EA5E9;
-    --bg:#F4F5FA;
-    --surface:#FFFFFF;
-    --surface-alt:#F7F7FC;
-    --border:#E7E8F2;
-    --text-primary:#181824;
-    --text-secondary:#6E6E85;
-    --text-faint:#A0A0B5;
-    --danger:#E5484D;
-    --success:#1FA971;
-    --radius-sm:8px; --radius-md:12px; --radius-lg:18px;
-    --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:24px; --space-6:32px;
-}
-html, body, [class*="css"]{ font-family:'IBM Plex Sans Thai','Inter',-apple-system,sans-serif !important; }
-h1,h2,h3,h4,.brand,.hero h1{ font-family:'Inter','IBM Plex Sans Thai',sans-serif !important; }
-#MainMenu, header, footer { visibility:hidden; }
-.block-container{ padding-top:var(--space-4); padding-bottom:var(--space-6); max-width:880px; }
-body, .stApp{ background:var(--bg); color:var(--text-primary); }
-section[data-testid="stSidebar"]{ background:var(--surface); border-right:1px solid var(--border); }
-section[data-testid="stSidebar"] .block-container{ padding:var(--space-5) var(--space-3) var(--space-4) var(--space-3); }
-.brand{ display:flex; align-items:center; gap:10px; font-weight:700; font-size:1.15rem; padding:0 var(--space-1) var(--space-5) var(--space-1); color:var(--text-primary); }
-.brand-badge{ width:34px; height:34px; border-radius:var(--radius-sm); flex-shrink:0; background:var(--primary-grad); display:flex; align-items:center; justify-content:center; color:white; font-size:17px; box-shadow:0 3px 8px rgba(91,91,230,0.28); }
-.nav-label{ font-size:0.68rem; font-weight:700; letter-spacing:0.08em; color:var(--text-faint); text-transform:uppercase; margin:var(--space-4) var(--space-1) var(--space-2) var(--space-1); }
-section[data-testid="stSidebar"] .stButton>button{ width:100%; text-align:left; border:1px solid transparent; font-weight:500; font-size:0.9rem; padding:0.5rem 0.75rem; border-radius:var(--radius-sm); margin-bottom:2px; background:transparent; color:var(--text-secondary); transition:all 0.15s ease; }
-section[data-testid="stSidebar"] .stButton>button:hover{ background:var(--surface-alt); color:var(--text-primary); }
-section[data-testid="stSidebar"] .stButton>button[kind="primary"]{ background:var(--primary-soft) !important; color:var(--primary) !important; font-weight:600; border:1px solid transparent !important; box-shadow:none !important; }
-section[data-testid="stSidebar"] .stButton>button[kind="primary"]:hover{ background:var(--primary-soft) !important; }
-section[data-testid="stSidebar"] .stSelectbox label, section[data-testid="stSidebar"] .stToggle label p{ font-size:0.82rem; color:var(--text-secondary); font-weight:500; }
-section[data-testid="stSidebar"] div[data-baseweb="select"]>div{ border-radius:var(--radius-sm); border-color:var(--border); font-size:0.85rem; }
-.sidebar-divider{ height:1px; background:var(--border); margin:var(--space-4) 0; }
-.sidebar-stats{ font-size:0.76rem; color:var(--text-secondary); line-height:1.9; padding:0 var(--space-1); }
-.sidebar-stats b{ color:var(--text-primary); }
-.status-dot{ display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px; }
-.status-dot.ok{ background:var(--success); }
-.status-dot.off{ background:var(--danger); }
-.hero{ text-align:center; padding:var(--space-5) 0 var(--space-5) 0; }
-.hero-badge{ width:48px; height:48px; border-radius:var(--radius-md); margin:0 auto var(--space-3) auto; background:var(--primary-grad); display:flex; align-items:center; justify-content:center; font-size:22px; box-shadow:0 6px 16px rgba(91,91,230,0.25); }
-.hero h1{ font-size:1.65rem; font-weight:700; color:var(--text-primary); margin:0 0 var(--space-1) 0; letter-spacing:-0.01em; }
-.hero p{ color:var(--text-secondary); font-size:0.88rem; margin:0; }
-.chat-row{ display:flex; margin-bottom:var(--space-1); gap:var(--space-3); animation:fadeIn 0.2s ease; }
-.chat-row.user{ flex-direction:row-reverse; }
-@keyframes fadeIn{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
-.avatar{ width:30px; height:30px; border-radius:var(--radius-sm); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px; color:white; }
-.avatar.assistant{ background:var(--primary-grad); }
-.avatar.user{ background:#20202E; }
-.bubble-wrap{ display:flex; flex-direction:column; max-width:72%; }
-.chat-row.user .bubble-wrap{ align-items:flex-end; }
-.bubble{ padding:11px 15px; border-radius:var(--radius-md); line-height:1.65; font-size:0.92rem; white-space:pre-wrap; word-wrap:break-word; }
-.bubble.assistant{ background:var(--surface); border:1px solid var(--border); color:var(--text-primary); border-top-left-radius:4px; }
-.bubble.user{ background:var(--primary-grad); color:white; border-top-right-radius:4px; }
-.meta-row{ display:flex; align-items:center; flex-wrap:wrap; gap:var(--space-2); margin:var(--space-1) 0 0 0; font-size:0.7rem; color:var(--text-faint); }
-.time-badge{ display:inline-flex; align-items:center; gap:3px; padding:1px 8px; border-radius:20px; background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); font-size:0.68rem; }
-.mode-badge{ display:inline-flex; align-items:center; gap:3px; padding:1px 8px; border-radius:20px; background:var(--primary-soft); color:var(--primary); font-size:0.68rem; font-weight:600; }
-.mode-badge.graph{ background:#E6F7F3; color:#0F8A6B; }
-.sources{ font-size:0.74rem; color:var(--text-faint); margin:2px 0 var(--space-4) 42px; }
-.thinking-dots span{ display:inline-block; width:5px; height:5px; margin-right:3px; border-radius:50%; background:var(--primary); animation:bounce 1.1s infinite ease-in-out; }
-.thinking-dots span:nth-child(2){ animation-delay:0.15s; }
-.thinking-dots span:nth-child(3){ animation-delay:0.3s; }
-@keyframes bounce{ 0%,80%,100%{transform:scale(0.6); opacity:0.4;} 40%{transform:scale(1); opacity:1;} }
-div[data-testid="stExpander"]{ border:1px solid var(--border) !important; border-radius:var(--radius-md) !important; background:var(--surface); margin-bottom:var(--space-4); overflow:hidden; }
-div[data-testid="stExpander"] summary{ font-size:0.85rem; font-weight:500; color:var(--text-secondary); padding:var(--space-3) var(--space-4) !important; }
-.attach-hint{ font-size:0.76rem; color:var(--text-secondary); margin-top:var(--space-2); padding:var(--space-2) var(--space-3); background:var(--surface-alt); border-radius:var(--radius-sm); }
-.doc-card{ display:flex; align-items:center; gap:var(--space-3); background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:var(--space-3) var(--space-4); margin-bottom:var(--space-2); }
-.doc-card .doc-icon{ font-size:1.3rem; }
-.doc-card .doc-name{ font-weight:600; color:var(--text-primary); font-size:0.88rem; }
-.doc-card .doc-meta{ font-size:0.74rem; color:var(--text-faint); }
-.section-title{ font-size:0.95rem; font-weight:700; color:var(--text-primary); margin:var(--space-4) 0 var(--space-3) 0; }
-[data-testid="stChatInput"]{ border-color:var(--border); }
-</style>
-"""
-
-
 def inject_css():
-    """ส่ง CSS เข้า Streamlit — ลบบรรทัดว่างก่อนเสมอ กันบั๊ก raw-HTML block ถูกตัดจบก่อนเวลา"""
-    st.markdown("\n".join(line for line in _CSS.splitlines() if line.strip()), unsafe_allow_html=True)
+    css = r'''
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    :root{--bg:#0b0d10;--surface:#111419;--surface-2:#171a20;--line:#272c34;--line-soft:#20242b;--text:#f3f4f6;--text-2:#a6adb8;--text-3:#737b88;--success:#8ed6a5;--danger:#ef9a9a}
+    html,body,[class*="css"]{font-family:'Inter','Noto Sans Thai',sans-serif!important;background:var(--bg)!important;color:var(--text)!important;-webkit-font-smoothing:antialiased}
+    .stApp{background:var(--bg)!important} header[data-testid="stHeader"]{background:transparent!important}
+    .block-container{max-width:980px!important;padding:32px 34px 130px!important}
+    section[data-testid="stSidebar"]{background:#0e1014!important;border-right:1px solid var(--line-soft)!important}
+    section[data-testid="stSidebar"] .block-container{padding:24px 18px!important}
+    .brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700;letter-spacing:-.02em;padding:5px 8px 30px}
+    .brand-badge{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:#f4f5f7;color:#111319;font-size:15px}
+    .nav-label{color:var(--text-3);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin:26px 8px 12px}
+    .sidebar-divider{height:1px;background:var(--line-soft);margin:24px 4px}
+    .stButton{margin-bottom:6px!important}.stButton>button{min-height:44px!important;border-radius:9px!important;border:1px solid transparent!important;background:transparent!important;color:var(--text-2)!important;font-size:14px!important;font-weight:500!important;line-height:1.45!important;box-shadow:none!important;transition:background .16s ease,color .16s ease,border-color .16s ease!important}
+    .stButton>button:hover{background:var(--surface-2)!important;color:var(--text)!important;transform:none!important;box-shadow:none!important}
+    .stButton>button[kind="primary"]{background:var(--surface-2)!important;border-color:var(--line)!important;color:var(--text)!important}
+    .hero{padding:10px 0 28px;border-bottom:1px solid var(--line-soft);margin-bottom:24px}
+    .hero-badge{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line);margin-bottom:14px;font-size:15px}
+    .hero h1{margin:0 0 7px!important;font-size:30px!important;line-height:1.15!important;letter-spacing:-.04em!important;font-weight:700!important;color:var(--text)!important}
+    .hero p{margin:0!important;color:var(--text-2)!important;font-size:14px!important;line-height:1.65!important}
+    .section-title{color:var(--text)!important;font-size:13px!important;font-weight:600!important;margin:24px 0 10px!important}
+    .dime-wrapper{width:100%;margin:0 0 28px;animation:fadeIn .18s ease-out}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+    .dime-bubble{width:fit-content;max-width:88%;padding:0;border:0;border-radius:0;background:transparent;color:var(--text);font-size:16px;line-height:1.82;word-break:break-word}
+    .dime-bubble-user{margin-left:auto;padding:13px 16px;max-width:78%;background:#1a1e25;border:1px solid #292f38;border-radius:12px}
+    .dime-bubble-assistant{max-width:88%}
+    .dime-header{display:flex;align-items:center;gap:8px;min-height:22px;margin-bottom:9px}
+    .dime-tag{display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:transparent;font-size:11px;font-weight:600;letter-spacing:.07em;color:var(--text-3)}
+    .dime-tag-user{display:none}.dime-tag-ai{color:#8f98a6}
+    .dime-pulse-dot{width:6px;height:6px;border-radius:50%;background:#cbd3df;box-shadow:none}
+    .dime-pulse-dot.thinking{animation:pulse 1.1s infinite ease-in-out}
+    @keyframes pulse{50%{opacity:.35}}
+    .dime-content{color:#e8ebef}.dime-content p{margin:0 0 13px}.dime-content p:last-child{margin-bottom:0}
+    .dime-content code,code{font-family:'JetBrains Mono',monospace!important;font-size:.88em!important}
+    pre{background:#0a0c0f!important;border:1px solid var(--line)!important;border-radius:9px!important;padding:14px!important}
+    .dime-meta{display:flex;align-items:center;gap:8px;margin-top:7px;color:var(--text-3);font-size:11px;line-height:1.35}
+    .dime-meta-sep{opacity:.45}.dime-mode{padding:3px 7px;border:1px solid var(--line);border-radius:999px;color:var(--text-3);font-size:10px}
+    .dime-timer{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";color:#9ba3ae}
+    .sources{margin:-11px 0 22px 0;color:var(--text-3);font-size:11px;line-height:1.35.5}
+    div[data-testid="stChatInput"]{border:1px solid #303640!important;background:#111419!important;border-radius:14px!important;box-shadow:0 10px 30px rgba(0,0,0,.28)!important;padding:3px 7px!important}
+    div[data-testid="stChatInput"]:focus-within{border-color:#555d69!important;box-shadow:0 10px 32px rgba(0,0,0,.35)!important}
+    div[data-testid="stChatInput"] textarea{color:var(--text)!important;font-size:16px!important;line-height:1.6!important}
+    div[data-testid="stChatInput"] textarea::placeholder{color:#666f7b!important}
+    div[data-testid="stChatInput"] button{background:#f1f3f6!important;color:#111318!important;border-radius:9px!important}
+    div[data-baseweb="select"]>div,div[data-baseweb="input"]>div,div[data-baseweb="textarea"]>div{background:var(--surface)!important;border:1px solid var(--line)!important;border-radius:9px!important}
+    div[data-baseweb="select"]>div:hover,div[data-baseweb="input"]>div:hover,div[data-baseweb="textarea"]>div:hover{border-color:#3a414c!important}
+    label,.stMarkdown,.stCaption{color:var(--text-2)!important}.stSlider [role="slider"]{background:#dce2ea!important}
+    div[data-testid="stExpander"]{border:1px solid var(--line-soft)!important;border-radius:10px!important;background:var(--surface)!important}
+    .doc-card{display:flex;align-items:center;gap:12px;padding:13px 14px;margin:5px 0;background:var(--surface);border:1px solid var(--line-soft);border-radius:10px}
+    .doc-icon{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line)}
+    .doc-name{color:var(--text);font-size:14px;font-weight:600}.doc-meta{color:var(--text-3);font-size:12px;margin-top:2px}
+    .attach-hint{color:var(--text-3);font-size:12px;margin-top:10px}
+    .sidebar-stats{color:var(--text-3);font-size:11px;line-height:1.35.9;padding:0 7px}.sidebar-stats b{color:var(--text-2);font-weight:600}
+    .status-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;background:#69717d}.status-dot.ok{background:var(--success)}.status-dot.off{background:var(--danger)}
+    #MainMenu,footer{visibility:hidden}
+    </style>
+    '''
+    st.markdown(css, unsafe_allow_html=True)
 
 
-def format_elapsed(seconds: float) -> str:
-    if seconds < 60:
-        return f"{seconds:.1f} วินาที"
-    m, s = divmod(seconds, 60)
-    return f"{int(m)} นาที {s:.0f} วินาที"
+def bubble_html(*args, **kwargs) -> str:
+    role=kwargs.get("role")
+    content=kwargs.get("content",kwargs.get("text",""))
+    ts=kwargs.get("ts","")
+    elapsed=kwargs.get("elapsed")
+    mode=kwargs.get("mode")
+    thinking=kwargs.get("thinking",False)
 
+    if args:
+        if len(args)>=1: role=str(args[0]).lower()
+        if len(args)>=2: content=args[1]
+        if len(args)>=3: ts=args[2]
+        if len(args)>=4: elapsed=args[3]
+        if len(args)>=5: mode=args[4]
 
-def bubble_html(role: str, content: str, ts: str = "", elapsed: float | None = None,
-                 thinking: bool = False, mode: str | None = None) -> str:
-    avatar = "🙂" if role == "user" else "💬"
-    meta = f'<span>{ts}</span>' if ts else ""
-    if mode and role == "assistant":
-        icon, label = MODE_LABELS.get(mode, ("", mode))
-        badge_class = "mode-badge graph" if mode == "graph" else "mode-badge"
-        meta += f'<span class="{badge_class}">{icon} {label}</span>'
-    if thinking:
-        meta += f'<span class="time-badge">⏳ {elapsed:.1f}s</span>' if elapsed else '<span class="time-badge">⏳</span>'
-    elif elapsed is not None:
-        meta += f'<span class="time-badge">⚡ {format_elapsed(elapsed)}</span>'
-    body = content if content else '<span class="thinking-dots"><span></span><span></span><span></span></span> กำลังคิด...'
-    return f"""
-    <div class="chat-row {role}">
-        <div class="avatar {role}">{avatar}</div>
-        <div class="bubble-wrap">
-            <div class="bubble {role}">{body}</div>
-            <div class="meta-row">{meta}</div>
-        </div>
-    </div>
-    """
+    role=role or "assistant"
+    is_user=role in ("user","human")
+
+    if elapsed is not None:
+        timer=f"{float(elapsed):.1f}s"
+        timer_text=f"กำลังคิด · {timer}" if thinking else f"ตอบใน {timer}"
+    else:
+        timer_text=""
+
+    if is_user:
+        header=""
+        meta=f'<div class="dime-meta"><span>{html.escape(str(ts))}</span></div>' if ts else ""
+        bubble_class="dime-bubble-user"
+    else:
+        mode_label=""
+        if mode=="vector": mode_label='<span class="dime-mode">Vector</span>'
+        elif mode=="graph": mode_label='<span class="dime-mode">Graph</span>'
+        header=f'''<div class="dime-header"><span class="dime-tag dime-tag-ai"><span class="dime-pulse-dot {"thinking" if thinking else ""}"></span>FLOWCHAT</span></div>'''
+        pieces=[]
+        if timer_text: pieces.append(f'<span class="dime-timer">{"⏳ " if thinking else ""}{timer_text}</span>')
+        if mode_label: pieces.append(mode_label)
+        if ts and not thinking: pieces.append(f'<span>{html.escape(str(ts))}</span>')
+        sep='<span class="dime-meta-sep">·</span>'
+        meta=f'<div class="dime-meta">{sep.join(pieces)}</div>' if pieces else ""
+        bubble_class="dime-bubble-assistant"
+
+    safe_content=html.escape(str(content)).replace("\n","<br>")
+    if thinking and not safe_content: safe_content='<span style="color:#737b88">กำลังประมวลผลคำตอบ…</span>'
+
+    return f'''<div class="dime-wrapper"><div class="dime-bubble {bubble_class}">{header}<div class="dime-content">{safe_content}</div>{meta}</div></div>'''
+
+apply_custom_ui=inject_css
