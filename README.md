@@ -1,100 +1,104 @@
-# Flowchat — Local LLM Chat + Hybrid RAG (Vector + Graph)
+# 💬 Flowchat (Hybrid RAG)
 
-แชทกับ LLM ที่รันบนเครื่องตัวเอง (Ollama) พร้อมระบบ **Hybrid RAG สองโหมด**:
-- **🔎 Vector mode** — ค้นข้อมูลจาก "ความหมาย" (semantic search) เหมาะกับเอกสารทั่วไปและคำถามเชิงเนื้อหา
-- **🕸️ Graph mode** — ค้นข้อมูลจาก "ความสัมพันธ์" ของโค้ด (import / เรียกใช้ฟังก์ชัน) เหมาะกับคำถามเชิงโครงสร้างโค้ด
+ระบบแชท AI ที่ทำงานบนเครื่อง 100% (Local) โดยใช้สถาปัตยกรรม **Hybrid RAG** ที่ผสานการทำงานระหว่าง **Vector Search** (ค้นหาความหมาย) และ **Graph Analysis** (สืบค้นโครงสร้างความสัมพันธ์ของโค้ด .py) เข้าด้วยกัน ผู้ใช้เลือกสลับโหมดได้เองผ่านหน้า UI
 
-งานวิชา Select Topic in Software
+## 🛠 Tech Stack
+- **Environment:** Python 3.10+ (pip + venv)
+- **UI:** Streamlit
+- **LLM & Embeddings:** Ollama (เช่น `qwen2.5-coder:7b` และ `nomic-embed-text`)
+- **Vector Search:** NumPy (in-memory cosine similarity, ไม่ต้องพึ่ง FAISS)
+- **Graph Analysis:** `ast` มาตรฐานของ Python (ไม่ต้องพึ่ง Kuzu/networkx)
 
----
-
-## 1. โครงสร้างโปรเจกต์
-
-```
-Flowchat/
-├── app.py            — ประกอบ UI และ flow การทำงานทั้งหมด (entry point)
-├── config.py         — ค่าคงที่และค่าเริ่มต้นทั้งหมด
-├── ollama_client.py  — จัดการ connection กับ Ollama (cache ไว้ใช้ซ้ำ เพื่อประสิทธิภาพ)
-├── ui_style.py        — CSS ธีมของแอป + ตัว render ข้อความแชท
-├── vector_rag.py      — Vector mode: อ่านไฟล์ → ตัด chunk → embedding → cosine similarity
-├── graph_rag.py       — Graph mode: วิเคราะห์ไฟล์ .py ด้วย ast → สร้างกราฟ import/เรียกใช้ฟังก์ชัน
-├── file_utils.py      — ฟังก์ชันช่วยจัดการไฟล์อัปโหลด ใช้ร่วมกันทั้งสองโหมด
-├── requirements.txt
-├── README.md
-└── my_dataset/         — ชุดข้อมูลตัวอย่างสำหรับสาธิตระบบ (ดูหัวข้อ 4)
-```
-
-แยกเป็นโมดูลเล็กๆ ที่มีหน้าที่ชัดเจน แทนการยัดทุกอย่างไว้ในไฟล์เดียว ทำให้:
-- อ่าน/แก้ไขง่ายขึ้น แต่ละไฟล์รับผิดชอบเรื่องเดียว
-- โมดูลต่างๆ import กันเป็นระบบ (`app.py` → `config`, `ollama_client`, `ui_style`, `vector_rag`, `graph_rag`, `file_utils`) ซึ่งเป็นตัวอย่างความสัมพันธ์ของโค้ดที่ Graph mode ใช้สาธิตได้ทันที
+## 📋 Prerequisites (สิ่งที่ต้องมีก่อนเริ่ม)
+1. **[Python 3.10+](https://www.python.org/downloads/)**: สำหรับรันตัวแอป
+2. **[Ollama](https://ollama.com/)**: สำหรับรัน AI Model ภายในเครื่อง
 
 ---
 
-## 2. เตรียม Ollama
+## 🚀 Setup & Installation (วิธีติดตั้ง)
 
+**1. Clone the repository**
 ```bash
-ollama serve
-ollama pull <โมเดลแชทที่ต้องการ>     # เช่น qwen2.5-coder:7b หรือโมเดลอื่นที่มีในเครื่อง
-ollama pull nomic-embed-text          # ใช้สำหรับ Vector mode เท่านั้น (Graph mode ไม่ต้องใช้)
+git clone https://github.com/FloWgus23/RAG.git
+cd RAG
 ```
 
-## 3. ติดตั้งและรัน
-
+**2. ติดตั้ง Dependencies**
+โปรเจกต์นี้ใช้ `pip` ในการจัดการแพ็กเกจ รันคำสั่งเดียวเพื่อติดตั้งไลบรารีทั้งหมดจาก `requirements.txt`:
 ```bash
 pip install -r requirements.txt
-streamlit run app.py
 ```
 
-ไม่มี dependency เพิ่มสำหรับ Graph mode — ใช้ `ast` ซึ่งเป็นไลบรารีมาตรฐานของ Python เอง เบาและไม่ต้องพึ่งไลบรารีหนักอย่าง Kuzu/networkx
+**3. ดาวน์โหลด AI Models (Ollama)**
+เปิด Terminal/PowerShell แล้วรันคำสั่งเพื่อโหลดโมเดลภาษาและโมเดลทำเวกเตอร์:
+```bash
+ollama pull qwen2.5-coder:7b
+ollama pull nomic-embed-text
+```
+
+> **หมายเหตุ:** ต้องรัน `ollama serve` ทิ้งไว้เบื้องหลังเสมอขณะใช้งานระบบ
 
 ---
 
-## 4. Dataset: `my_dataset/`
+## 💡 How to Use (วิธีใช้งาน)
 
-โฟลเดอร์นี้คือ **สำเนาโค้ดของ Flowchat เอง** (7 ไฟล์ `.py` ตามหัวข้อ 1) ใช้เป็นชุดข้อมูลตัวอย่างสำหรับสาธิตทั้งสองโหมด — พูดง่ายๆ คือ **Flowchat วิเคราะห์ตัวเอง**
+**Step 1: เตรียมชุดข้อมูล (Dataset)**
+โปรเจกต์นี้แถมโฟลเดอร์ `my_dataset/` มาให้แล้ว — เป็น **สำเนาโค้ดของ Flowchat เอง** (7 ไฟล์ `.py`) ใช้เป็นชุดข้อมูลตัวอย่างสำหรับทดสอบทันที หรือจะอัปโหลดไฟล์ `.py`/`.pdf`/`.docx`/`.txt`/`.md` ของคุณเองแทนก็ได้
 
-เหตุผลที่เลือกใช้โค้ดตัวเอง:
-- มีความสัมพันธ์ระหว่างไฟล์จริง (`app.py` import เกือบทุกโมดูล) ทำให้ Graph mode มีอะไรให้แสดงผล
-- ไม่ต้องหา dataset จากภายนอก พิสูจน์ได้ทันทีว่าระบบทำงานถูกต้อง เพราะรู้คำตอบที่ถูกอยู่แล้ว
+**Step 2: Indexing อัตโนมัติ (ไม่ต้องรันสคริปต์แยก)**
+ต่างจากระบบทั่วไปที่ต้องรันสคริปต์ index ต่างหากก่อนเปิดแอป — Flowchat จะสร้าง **Vector index** และ **Code graph** ให้อัตโนมัติทันทีที่อัปโหลดไฟล์ผ่านหน้า **Knowledge Base** หรือกล่องแนบไฟล์ในหน้าแชท ไม่มีขั้นตอนเตรียมฐานข้อมูลแยกต่างหาก
 
-### วิธีใช้
-1. ไปที่แท็บ **Knowledge Base** แล้วอัปโหลดไฟล์ทั้ง 7 ไฟล์จากโฟลเดอร์ `my_dataset/`
-   (หรือกดเปิดกล่อง "📎 แนบไฟล์ความรู้เพิ่มเติม" ในหน้าแชทแล้วอัปโหลดได้เลยโดยไม่ต้องออกจากหน้าแชท)
-2. ไฟล์ `.py` ทุกไฟล์จะถูก index เข้า **ทั้ง Vector store และ Code graph พร้อมกันอัตโนมัติ**
-3. เปิดสวิตช์ "ใช้ RAG" ใน sidebar แล้วเลือกโหมด **Vector** หรือ **Graph** ตามที่ต้องการทดสอบ
-
-### ตัวอย่างคำถามทดสอบ
-
-**Vector mode** (ค้นจากความหมาย/เนื้อหา):
-- "ฟังก์ชัน bubble_html ทำหน้าที่อะไร"
-- "โปรเจกต์นี้ cache การเชื่อมต่อ Ollama ยังไง"
-- "CSS ของแอปนี้ใช้สีหลักอะไร"
-
-**Graph mode** (ค้นจากความสัมพันธ์/โครงสร้าง):
-- "app.py import โมดูลอะไรบ้าง"
-- "get_client ถูกเรียกใช้จากที่ไหนบ้าง"
-- "ถ้าแก้ config.py จะกระทบไฟล์ไหนบ้าง"
-
-คำตอบทั้งสองโหมดจะโชว์ **badge บอก Mode ที่ใช้** (🔎 Vector / 🕸️ Graph) และ **แหล่งอ้างอิง (Sources)** ต่อท้ายข้อความเสมอ
-
-> ต้องการทดสอบกับ dataset อื่น (เช่นโค้ดโปรเจกต์ของคุณเอง) ก็อัปโหลดไฟล์ `.py` ชุดอื่นแทนได้เลย ระบบไม่ผูกกับไฟล์ชุดนี้ตายตัว
+**Step 3: เปิดหน้าจอ UI**
+```bash
+streamlit run app.py
+```
+เมื่อเปิดขึ้นมาแล้ว อัปโหลดไฟล์ dataset → เลือกโหมด **🔎 Vector** หรือ **🕸️ Graph** ใน sidebar → พิมพ์คำถามได้เลย
 
 ---
 
-## 5. ฟีเจอร์อื่นๆ
-- **Clear Chat** — ปุ่ม "🗑️ ล้างประวัติแชท" ใน sidebar ล้างบทสนทนาทั้งหมด (Vector store / Code graph ไม่ถูกล้างไปด้วย)
-- **แสดงเวลาที่ใช้ตอบแบบ real-time** — ระหว่างตอบมี badge นับเวลาสด (⏳) พอตอบเสร็จเปลี่ยนเป็นเวลารวม (⚡)
-- **ปรับพารามิเตอร์โมเดล** — Temperature และ num_ctx ปรับได้ในแท็บ Settings
+## 📁 Project Structure
 
-## 6. ปรับแต่งเพิ่มเติม
-- เปลี่ยนโมเดลแชท/embedding, system prompt, top-k ได้ในแท็บ **Settings**
-- ปรับสีธีมได้ที่ CSS variables ด้านบนของ `ui_style.py` (ตัวแปร `--primary`, `--bg` ฯลฯ)
-- Graph mode จับคู่ชื่อฟังก์ชันแบบ best-effort (ไม่ได้ resolve type เต็มรูปแบบ) เหมาะกับโค้ด dataset ขนาดเล็ก-กลาง
+- **`app.py`** — หน้าจอติดต่อผู้ใช้ (Streamlit) ประกอบ UI และ flow การทำงานทั้งหมด
+- **`config.py`** — ค่าคงที่และค่าเริ่มต้นทั้งหมดของระบบ
+- **`ollama_client.py`** — จัดการ connection กับ Ollama (cache ไว้ใช้ซ้ำเพื่อประสิทธิภาพ)
+- **`ui_style.py`** — CSS ธีมของแอป + ตัว render ข้อความแชท
+- **`vector_rag.py`** — Vector mode: อ่านไฟล์ → ตัด chunk (แบบ ast-aware สำหรับ `.py`) → embedding → cosine similarity
+- **`graph_rag.py`** — Graph mode: วิเคราะห์ไฟล์ `.py` ด้วย `ast` → สร้างกราฟ import/เรียกใช้ฟังก์ชัน
+- **`file_utils.py`** — ฟังก์ชันช่วยจัดการไฟล์อัปโหลด ใช้ร่วมกันทั้งสองโหมด
+- **`my_dataset/`** — โฟลเดอร์สำหรับวางไฟล์โค้ดต้นฉบับ (ค่าเริ่มต้นคือโค้ดของ Flowchat เอง)
 
 ---
 
-## 7. สำหรับส่งงาน (Google Form)
-1. อัดคลิป YouTube (≤ 5 นาที) สาธิต: เปิด Streamlit → ถามคำถามทั้ง Vector และ Graph mode → โชว์ Mode/Sources → กด Clear Chat
-2. zip โฟลเดอร์ `my_dataset/` → อัป Google Drive → ตั้งสิทธิ์ Anyone with the link → Viewer → นี่คือลิงก์ Dataset
-3. zip ทั้งโปรเจกต์ (ไฟล์ `.py` ทั้งหมด + `requirements.txt` + `README.md`) → อัป Google Drive → ตั้งสิทธิ์เดียวกัน → นี่คือลิงก์ Source Code
+## 🧠 Dataset ที่ดีช่วยให้ AI ตอบแม่นขึ้นได้อย่างไร
+
+RAG ทำงานตามหลัก **"garbage in, garbage out"** — ตัว LLM ฉลาดแค่ไหนก็ตาม ถ้า context ที่ส่งเข้าไปไม่ดี คำตอบก็จะไม่ดีตาม
+
+| ปัจจัยของ dataset | ผลกับคำตอบ |
+|---|---|
+| docstring ชัดเจนในทุกฟังก์ชัน | Vector mode ค้นด้วยความหมายของเนื้อหา ถ้าไม่มี docstring ต้องเดาจากโค้ดดิบ แม่นน้อยกว่า |
+| ตั้งชื่อฟังก์ชัน/ไฟล์สื่อความหมาย | Graph mode จับคู่ node จากชื่อที่ปรากฏในคำถามตรงๆ ชื่อกำกวมจะหาไม่เจอ |
+| ไฟล์ขนาดพอดี ไม่ยัดทุกอย่างไว้ไฟล์เดียว | ไฟล์ยาวเกินไปจะถูกตัด chunk เยอะ เสี่ยง context ปนกันข้ามเรื่อง |
+| import กันอย่างมีเหตุผล | Graph mode อ่านความสัมพันธ์จาก import จริง ถ้าไม่ import กันเลยกราฟจะไม่มีอะไรให้ตอบ |
+
+โฟลเดอร์ `my_dataset/` ที่แถมมาผ่านเกณฑ์ทั้ง 4 ข้อนี้อยู่แล้ว เพราะเป็นโค้ดของ Flowchat เองที่มี docstring ครบ ตั้งชื่อสื่อความหมาย และ import กันเป็นระบบ
+
+## ⚙️ เทคนิคในโค้ดที่ช่วยให้ตอบดีขึ้น
+
+- **Python-aware chunking** (`vector_rag.chunk_python_file`) — แบ่ง chunk ตามขอบเขตฟังก์ชัน/คลาสจริงด้วย `ast` แทนการตัดทุก 800 ตัวอักษร ทำให้แต่ละ chunk เป็นฟังก์ชันที่สมบูรณ์เสมอ
+- **Embedding task prefix** (`vector_rag._query_prefix` / `_document_prefix`) — เติม `"search_query: "` / `"search_document: "` อัตโนมัติสำหรับโมเดลที่แนะนำแบบนี้ (เช่น `nomic-embed-text`) เพิ่มความแม่นยำการค้นหา
+- **Batch graph finalize** — อัปโหลดหลายไฟล์พร้อมกันจะคำนวณความสัมพันธ์ข้ามไฟล์ครั้งเดียวตอนจบ แทนคำนวณซ้ำทุกไฟล์
+- **Anti-hallucination system prompt** — กำกับ LLM ให้ตอบจากข้อมูลที่ให้มาเท่านั้น ห้ามเสริมเติมเอง และบอกตรงๆ เมื่อหาไม่เจอ
+
+## 🎛️ ปรับ Settings ให้ตอบแม่นขึ้น
+
+- **Temperature ต่ำ (0.1–0.3)** เมื่อใช้ RAG เพื่อให้โมเดลยึดตามข้อมูลที่ให้มากกว่าสร้างคำตอบใหม่
+- **top-k พอดี** (ค่าเริ่มต้น 4 เหมาะกับ dataset ขนาดเล็ก-กลาง) มากไปจะมี context ปนไม่เกี่ยวข้อง น้อยไปอาจพลาดข้อมูลสำคัญ
+- **เลือก embedding model ให้ตรงภาษา** — ถ้าเนื้อหา/คำถามเป็นไทยเป็นหลัก ลองเปลี่ยนเป็น `bge-m3` ในแท็บ Settings
+
+---
+
+## 📤 สำหรับส่งงาน (Google Form)
+1. อัดคลิป YouTube (≤ 5 นาที): เปิด Streamlit → ถามคำถามทั้ง Vector และ Graph mode → โชว์ Mode/Sources → กด Clear Chat
+2. zip โฟลเดอร์ `my_dataset/` → อัป Google Drive → ตั้งสิทธิ์ Anyone with the link → Viewer → ลิงก์ Dataset
+3. zip ทั้งโปรเจกต์ (ไฟล์ `.py` ทั้งหมด + `requirements.txt` + `README.md`) → อัป Google Drive → ตั้งสิทธิ์เดียวกัน → ลิงก์ Source Code
 4. นำ 3 ลิงก์ (YouTube, Dataset, Source Code) ไปกรอกใน Google Form

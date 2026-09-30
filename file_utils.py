@@ -19,10 +19,18 @@ def file_icon(name: str) -> str:
 
 
 def process_uploaded_files(files, vector_store: VectorStore, code_graph: CodeGraph):
-    """รับไฟล์จาก st.file_uploader มา index เข้า Vector store และ (ถ้าเป็น .py) Code graph ด้วย"""
+    """
+    รับไฟล์จาก st.file_uploader มา index เข้า Vector store และ (ถ้าเป็น .py) Code graph ด้วย
+
+    ไฟล์ .py ทั้งหมดในรอบเดียวกันจะถูก add_file(auto_finalize=False) ก่อน แล้ว finalize()
+    กราฟครั้งเดียวหลังลูปจบ — เร็วกว่าและถูกต้องกว่าการ finalize ทุกครั้งที่เพิ่มทีละไฟล์
+    (ความสัมพันธ์ข้ามไฟล์ เช่น A import B จะครบก็ต่อเมื่อไฟล์ทั้งชุดถูกเพิ่มหมดแล้ว)
+    """
     if not files:
         return
     existing = set(vector_store.document_names())
+    graph_touched = False
+
     for f in files:
         if f.name in existing:
             continue
@@ -30,7 +38,10 @@ def process_uploaded_files(files, vector_store: VectorStore, code_graph: CodeGra
         with st.spinner(f"กำลังประมวลผล {f.name} ..."):
             text = read_file(f)
             n_chunks = vector_store.add_document(f.name, text)
-            n_nodes = code_graph.add_file(f.name, text) if f.name.endswith(".py") else 0
+            n_nodes = 0
+            if f.name.endswith(".py"):
+                n_nodes = code_graph.add_file(f.name, text, auto_finalize=False)
+                graph_touched = True
 
         msg = f"เพิ่ม {f.name} แล้ว ({n_chunks} chunks"
         if n_nodes:
@@ -38,8 +49,11 @@ def process_uploaded_files(files, vector_store: VectorStore, code_graph: CodeGra
         msg += f", {time.perf_counter() - t0:.1f}s)"
         st.toast(msg, icon="✅")
 
+    if graph_touched:
+        code_graph.finalize()  # คำนวณความสัมพันธ์ข้ามไฟล์ครั้งเดียวหลังอัปโหลดครบทุกไฟล์
+
 
 def remove_document_everywhere(filename: str, vector_store: VectorStore, code_graph: CodeGraph):
     vector_store.remove_document(filename)
     if filename.endswith(".py"):
-        code_graph.remove_file(filename)
+        code_graph.remove_file(filename)  # ลบแล้ว finalize ใหม่ในตัวอยู่แล้ว (ดู graph_rag.py)

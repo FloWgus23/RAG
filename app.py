@@ -140,8 +140,9 @@ if st.session_state.page == "docs":
     if not docs:
         st.caption("ยังไม่มีเอกสาร — อัปโหลดไฟล์ด้านบนเพื่อเริ่มต้น (แนะนำลองอัปโฟลเดอร์ my_dataset/ ที่แถมมากับโปรเจกต์)")
     else:
+        chunk_counts = vector_store.chunk_counts()  # นับครั้งเดียว O(n) แทนการ .count() วนต่อไฟล์ O(n²)
         for d in docs:
-            n_chunks = vector_store.sources.count(d)
+            n_chunks = chunk_counts.get(d, 0)
             extra = f" · {code_graph.node_count(d)} code nodes" if d.endswith(".py") else ""
             c1, c2 = st.columns([8, 1])
             with c1:
@@ -250,6 +251,9 @@ else:
                         st.info("🕸️ Graph mode: ไม่พบฟังก์ชัน/คลาส/โมดูลที่ตรงกับคำถามในกราฟโค้ด "
                                 "— ลองระบุชื่อฟังก์ชัน/ไฟล์ให้ตรงกับ dataset หรือสลับไปโหมด Vector")
                 else:
+                    if vector_store.is_empty():
+                        st.info("🔎 Vector mode: ยังไม่มีเอกสารใน Knowledge Base "
+                                "— เปิดกล่อง 📎 ด้านบนหรือไปที่แท็บ Knowledge Base เพื่ออัปโหลดไฟล์ก่อน")
                     results = vector_store.search(prompt, top_k=st.session_state.top_k)
 
                 if results:
@@ -262,13 +266,17 @@ else:
         if context_block:
             if st.session_state.mode == "graph":
                 system_content += (
-                    "\n\nข้อมูลต่อไปนี้คือความสัมพันธ์เชิงโครงสร้างของโค้ด (import/เรียกใช้ฟังก์ชัน) "
-                    "ใช้ตอบคำถามให้ตรงประเด็น หากข้อมูลไม่พอให้บอกตามตรง:\n\n" + context_block
+                    "\n\nข้อมูลต่อไปนี้คือความสัมพันธ์เชิงโครงสร้างของโค้ด (import / เรียกใช้ฟังก์ชัน) "
+                    "ที่ดึงมาจากกราฟโค้ดจริง ไม่ใช่จากความจำของคุณ ใช้ข้อมูลนี้ตอบคำถามให้ตรงประเด็น "
+                    "อ้างชื่อไฟล์/ฟังก์ชันให้ตรงกับที่ปรากฏ ห้ามเดาความสัมพันธ์ที่ไม่มีในข้อมูลนี้ "
+                    "หากข้อมูลไม่พอต่อการตอบให้บอกตามตรงว่าไม่พบในกราฟโค้ดนี้:\n\n" + context_block
                 )
             else:
                 system_content += (
-                    "\n\nใช้ข้อมูลอ้างอิงต่อไปนี้ในการตอบคำถามหากเกี่ยวข้อง "
-                    "หากข้อมูลไม่เพียงพอให้บอกตามตรง:\n\n" + context_block
+                    "\n\nข้อมูลต่อไปนี้ดึงมาจากเอกสารที่ผู้ใช้อัปโหลดจริง ให้ใช้เป็นหลักในการตอบหากเกี่ยวข้องกับคำถาม "
+                    "ตอบให้ตรงกับเนื้อหาที่ให้มา ห้ามเสริมข้อมูลที่ไม่มีในเนื้อหานี้ขึ้นมาเอง "
+                    "หากเนื้อหาที่ให้มาไม่เพียงพอต่อการตอบ ให้บอกตามตรงว่าไม่พบข้อมูลที่เกี่ยวข้องในเอกสาร "
+                    "แทนที่จะตอบจากความรู้ทั่วไป:\n\n" + context_block
                 )
 
         ollama_messages = [{"role": "system", "content": system_content}]

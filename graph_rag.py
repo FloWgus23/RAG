@@ -42,8 +42,15 @@ class CodeGraph:
         for key in [k for k, n in self.nodes.items() if n.file == filename]:
             del self.nodes[key]
 
-    def add_file(self, filename: str, source: str) -> int:
-        """parse ไฟล์ .py หนึ่งไฟล์ เพิ่ม node เข้ากราฟ คืนค่าจำนวน node ที่เพิ่ม"""
+    def add_file(self, filename: str, source: str, auto_finalize: bool = True) -> int:
+        """
+        parse ไฟล์ .py หนึ่งไฟล์ เพิ่ม node เข้ากราฟ คืนค่าจำนวน node ที่เพิ่ม
+
+        auto_finalize=False ใช้ตอนอัปโหลดหลายไฟล์พร้อมกัน: เรียก add_file() วนทุกไฟล์
+        แบบ auto_finalize=False ก่อน แล้วค่อยเรียก finalize() ครั้งเดียวตอนจบ — ประหยัดกว่า
+        การ finalize() ใหม่ทั้งกราฟหลังทุกไฟล์ (ซึ่งจะกลายเป็น O(จำนวนไฟล์ × จำนวน node) โดยไม่จำเป็น)
+        และยังถูกต้องกว่าด้วย เพราะ cross-file edges (เช่น A import B) จะครบก็ต่อเมื่อทุกไฟล์ถูกเพิ่มแล้ว
+        """
         self.clear_file(filename)
         module_name = re.sub(r"[\\/]", ".", filename.rsplit(".", 1)[0])
 
@@ -90,7 +97,8 @@ class CodeGraph:
                     if isinstance(item, ast.FunctionDef):
                         index_function(item, prefix=f"{node.name}.", kind="method")
 
-        self.finalize()
+        if auto_finalize:
+            self.finalize()
         return len([n for n in self.nodes.values() if n.file == filename])
 
     def remove_file(self, filename: str):
