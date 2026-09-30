@@ -1,16 +1,20 @@
 # 💬 Flowchat (Hybrid RAG)
 
-ระบบแชท AI ที่ทำงานบนเครื่อง 100% (Local) โดยใช้สถาปัตยกรรม **Hybrid RAG** ที่ผสานการทำงานระหว่าง **Vector Search** (ค้นหาความหมาย) และ **Graph Analysis** (สืบค้นโครงสร้างความสัมพันธ์ของโค้ด .py) เข้าด้วยกัน ผู้ใช้เลือกสลับโหมดได้เองผ่านหน้า UI
+ระบบแชท AI ที่ทำงานบนเครื่อง 100% (Local) โดยใช้สถาปัตยกรรม **Hybrid RAG** ที่ผสานการทำงานระหว่าง **Vector Search** (ค้นหาความหมาย) และ **Graph Analysis** (สืบค้นโครงสร้างความสัมพันธ์ของโค้ด .py) เข้าด้วยกัน ผู้ใช้เลือกโหมดได้เองผ่านหน้า UI — หรือใช้ **🔀 Hybrid** (ค่าเริ่มต้น) ที่ค้นทั้งสองแบบพร้อมกันโดยไม่ต้องเดาว่าคำถามนี้ควรใช้โหมดไหน
+
+---
 
 ## 🛠 Tech Stack
 - **Environment:** Python 3.10+ (pip + venv)
 - **UI:** Streamlit
 - **LLM & Embeddings:** Ollama (เช่น `qwen2.5-coder:7b` และ `nomic-embed-text`)
-- **Vector Search:** NumPy (in-memory cosine similarity, ไม่ต้องพึ่ง FAISS)
-- **Graph Analysis:** `ast` มาตรฐานของ Python (ไม่ต้องพึ่ง Kuzu/networkx)
+- **Vector Search:** NumPy (in-memory cosine similarity, ไม่ต้องพึ่งไลบรารีภายนอกอย่าง FAISS)
+- **Graph Analysis:** `ast` มาตรฐานของ Python (ไม่ต้องพึ่ง Kùzu หรือ NetworkX)
+
+---
 
 ## 📋 Prerequisites (สิ่งที่ต้องมีก่อนเริ่ม)
-1. **[Python 3.10+](https://www.python.org/downloads/)**: สำหรับรันตัวแอป
+1. **[Python 3.10+](https://www.python.org/downloads/)**: สำหรับรันแอปพลิเคชัน
 2. **[Ollama](https://ollama.com/)**: สำหรับรัน AI Model ภายในเครื่อง
 
 ---
@@ -36,69 +40,102 @@ ollama pull qwen2.5-coder:7b
 ollama pull nomic-embed-text
 ```
 
-> **หมายเหตุ:** ต้องรัน `ollama serve` ทิ้งไว้เบื้องหลังเสมอขณะใช้งานระบบ
+> **หมายเหตุ:** ต้องเปิดโปรแกรม Ollama หรือรัน `ollama serve` ทิ้งไว้เบื้องหลังเสมอขณะใช้งานระบบ
 
 ---
 
 ## 💡 How to Use (วิธีใช้งาน)
 
 **Step 1: เตรียมชุดข้อมูล (Dataset)**
-โปรเจกต์นี้แถมโฟลเดอร์ `my_dataset/` มาให้แล้ว — เป็น **สำเนาโค้ดของ Flowchat เอง** (7 ไฟล์ `.py`) ใช้เป็นชุดข้อมูลตัวอย่างสำหรับทดสอบทันที หรือจะอัปโหลดไฟล์ `.py`/`.pdf`/`.docx`/`.txt`/`.md` ของคุณเองแทนก็ได้
+Dataset ตัวอย่างของโปรเจกต์นี้คือโค้ดของ **[SmolML](https://github.com/rodmarkun/SmolML)** — ไลบรารี Machine Learning ที่เขียนด้วย Python ล้วนๆ (ใช้แค่ standard library) เพื่อการศึกษา ประกอบด้วย autograd (`Value`), อาร์เรย์หลายมิติ (`MLArray`), preprocessing, optimizers, loss functions, regression, neural network, tree models และ K-Means
+
+รันสคริปต์เพื่อดึง dataset มาใส่โฟลเดอร์ `my_dataset/`:
+```bash
+python fetch_dataset.py                       # โหลด ZIP จาก GitHub อัตโนมัติ
+python fetch_dataset.py --zip SmolML-main.zip # หรือระบุไฟล์ ZIP ที่ดาวน์โหลดไว้เอง
+python fetch_dataset.py --with-tests          # (ไม่บังคับ) รวมโฟลเดอร์ tests/*.py
+```
+สคริปต์จะเก็บเฉพาะไฟล์ `.py` ใน `smolml/` และไฟล์ `.md` (README ของแต่ละส่วน) พร้อมตั้งชื่อไฟล์ตามลำดับแพ็กเกจ เช่น `smolml/core/ml_array.py` → `smolml.core.ml_array.py` เพื่อให้ Graph mode สามารถเชื่อมโยง import ข้ามไฟล์ได้อย่างแม่นยำ (สามารถนำไฟล์ `.py`, `.pdf`, `.docx`, `.txt`, `.md` อื่นๆ มาใช้งานแทนได้เช่นกัน)
 
 **Step 2: Indexing อัตโนมัติ (ไม่ต้องรันสคริปต์แยก)**
-ต่างจากระบบทั่วไปที่ต้องรันสคริปต์ index ต่างหากก่อนเปิดแอป — Flowchat จะสร้าง **Vector index** และ **Code graph** ให้อัตโนมัติทันทีที่อัปโหลดไฟล์ผ่านหน้า **Knowledge Base** หรือกล่องแนบไฟล์ในหน้าแชท ไม่มีขั้นตอนเตรียมฐานข้อมูลแยกต่างหาก
+ระบบจะสร้าง **Vector Index** และ **Code Graph** ให้อัตโนมัติทันทีที่อัปโหลดไฟล์ผ่านหน้า **Knowledge Base** หรือกล่องแนบไฟล์ในหน้าแชท โดยไม่ต้องรันสคริปต์เตรียมฐานข้อมูลแยกต่างหาก
 
 **Step 3: เปิดหน้าจอ UI**
 ```bash
 streamlit run app.py
 ```
-เมื่อเปิดขึ้นมาแล้ว อัปโหลดไฟล์ dataset → เลือกโหมด **🔎 Vector** หรือ **🕸️ Graph** ใน sidebar → พิมพ์คำถามได้เลย
+เมื่อเปิดเบราว์เซอร์ขึ้นมา ให้อัปโหลดไฟล์ dataset → เลือกโหมดค้นหา **🔀 Hybrid** (แนะนำ) / **🔎 Vector** / **🕸️ Graph** ที่ sidebar → เริ่มพิมพ์คำถามได้ทันที
 
 ---
 
 ## 📁 Project Structure
 
-- **`app.py`** — หน้าจอติดต่อผู้ใช้ (Streamlit) ประกอบ UI และ flow การทำงานทั้งหมด
-- **`config.py`** — ค่าคงที่และค่าเริ่มต้นทั้งหมดของระบบ
-- **`ollama_client.py`** — จัดการ connection กับ Ollama (cache ไว้ใช้ซ้ำเพื่อประสิทธิภาพ)
-- **`ui_style.py`** — CSS ธีมของแอป + ตัว render ข้อความแชท
-- **`vector_rag.py`** — Vector mode: อ่านไฟล์ → ตัด chunk (แบบ ast-aware สำหรับ `.py`) → embedding → cosine similarity
-- **`graph_rag.py`** — Graph mode: วิเคราะห์ไฟล์ `.py` ด้วย `ast` → สร้างกราฟ import/เรียกใช้ฟังก์ชัน
-- **`file_utils.py`** — ฟังก์ชันช่วยจัดการไฟล์อัปโหลด ใช้ร่วมกันทั้งสองโหมด
-- **`my_dataset/`** — โฟลเดอร์สำหรับวางไฟล์โค้ดต้นฉบับ (ค่าเริ่มต้นคือโค้ดของ Flowchat เอง)
+- **`app.py`** — หน้าจอติดต่อผู้ใช้ (Streamlit) จัดการ UI และ flow การทำงานหลัก
+- **`config.py`** — ค่าคงที่และการตั้งค่าเริ่มต้นทั้งหมดของระบบ
+- **`ollama_client.py`** — จัดการ connection และ cache การเรียกใช้งาน Ollama
+- **`ui_style.py`** — จัดการธีม CSS และเรนเดอร์กล่องข้อความแชท
+- **`vector_rag.py`** — Vector mode: อ่านไฟล์ → ตัด chunk (ast-aware สำหรับ `.py`) → embedding → cosine similarity
+- **`graph_rag.py`** — Graph mode: วิเคราะห์โครงสร้างโค้ดด้วย `ast` → สร้างกราฟ import/function call
+- **`hybrid_rag.py`** — Hybrid mode: ผสานการทำงานของ Vector และ Graph พร้อมควบคุมสัดส่วน context
+- **`file_utils.py`** — โมดูลช่วยจัดการการอ่านและประมวลผลไฟล์อัปโหลด
+- **`fetch_dataset.py`** — สคริปต์ดาวน์โหลดและจัดรูปแบบชุดข้อมูล SmolML
+- **`my_dataset/`** — โฟลเดอร์เก็บไฟล์ชุดข้อมูลที่พร้อมใช้งาน
 
 ---
 
 ## 🧠 Dataset ที่ดีช่วยให้ AI ตอบแม่นขึ้นได้อย่างไร
 
-RAG ทำงานตามหลัก **"garbage in, garbage out"** — ตัว LLM ฉลาดแค่ไหนก็ตาม ถ้า context ที่ส่งเข้าไปไม่ดี คำตอบก็จะไม่ดีตาม
+RAG ทำงานตามหลัก **"garbage in, garbage out"** — หากบริบท (context) ที่ส่งให้ LLM ขาดความชัดเจน คำตอบที่ได้ย่อมคลาดเคลื่อน
 
-| ปัจจัยของ dataset | ผลกับคำตอบ |
+| ปัจจัยของ Dataset | ผลลัพธ์ต่อการทำงานของระบบ |
 |---|---|
-| docstring ชัดเจนในทุกฟังก์ชัน | Vector mode ค้นด้วยความหมายของเนื้อหา ถ้าไม่มี docstring ต้องเดาจากโค้ดดิบ แม่นน้อยกว่า |
-| ตั้งชื่อฟังก์ชัน/ไฟล์สื่อความหมาย | Graph mode จับคู่ node จากชื่อที่ปรากฏในคำถามตรงๆ ชื่อกำกวมจะหาไม่เจอ |
-| ไฟล์ขนาดพอดี ไม่ยัดทุกอย่างไว้ไฟล์เดียว | ไฟล์ยาวเกินไปจะถูกตัด chunk เยอะ เสี่ยง context ปนกันข้ามเรื่อง |
-| import กันอย่างมีเหตุผล | Graph mode อ่านความสัมพันธ์จาก import จริง ถ้าไม่ import กันเลยกราฟจะไม่มีอะไรให้ตอบ |
-
-โฟลเดอร์ `my_dataset/` ที่แถมมาผ่านเกณฑ์ทั้ง 4 ข้อนี้อยู่แล้ว เพราะเป็นโค้ดของ Flowchat เองที่มี docstring ครบ ตั้งชื่อสื่อความหมาย และ import กันเป็นระบบ
-
-## ⚙️ เทคนิคในโค้ดที่ช่วยให้ตอบดีขึ้น
-
-- **Python-aware chunking** (`vector_rag.chunk_python_file`) — แบ่ง chunk ตามขอบเขตฟังก์ชัน/คลาสจริงด้วย `ast` แทนการตัดทุก 800 ตัวอักษร ทำให้แต่ละ chunk เป็นฟังก์ชันที่สมบูรณ์เสมอ
-- **Embedding task prefix** (`vector_rag._query_prefix` / `_document_prefix`) — เติม `"search_query: "` / `"search_document: "` อัตโนมัติสำหรับโมเดลที่แนะนำแบบนี้ (เช่น `nomic-embed-text`) เพิ่มความแม่นยำการค้นหา
-- **Batch graph finalize** — อัปโหลดหลายไฟล์พร้อมกันจะคำนวณความสัมพันธ์ข้ามไฟล์ครั้งเดียวตอนจบ แทนคำนวณซ้ำทุกไฟล์
-- **Anti-hallucination system prompt** — กำกับ LLM ให้ตอบจากข้อมูลที่ให้มาเท่านั้น ห้ามเสริมเติมเอง และบอกตรงๆ เมื่อหาไม่เจอ
-
-## 🎛️ ปรับ Settings ให้ตอบแม่นขึ้น
-
-- **Temperature ต่ำ (0.1–0.3)** เมื่อใช้ RAG เพื่อให้โมเดลยึดตามข้อมูลที่ให้มากกว่าสร้างคำตอบใหม่
-- **top-k พอดี** (ค่าเริ่มต้น 4 เหมาะกับ dataset ขนาดเล็ก-กลาง) มากไปจะมี context ปนไม่เกี่ยวข้อง น้อยไปอาจพลาดข้อมูลสำคัญ
-- **เลือก embedding model ให้ตรงภาษา** — ถ้าเนื้อหา/คำถามเป็นไทยเป็นหลัก ลองเปลี่ยนเป็น `bge-m3` ในแท็บ Settings
+| **มี docstring ชัดเจนในทุกฟังก์ชัน** | Vector mode ค้นหาจากความหมายของข้อความ การมีคำอธิบายช่วยให้จับคู่ semantic ได้แม่นยำกว่าการอ่านโค้ดดิบ |
+| **ตั้งชื่อตัวแปร/ฟังก์ชันสื่อความหมาย** | Graph mode จับคู่ node จากชื่อที่ปรากฏในคำถามโดยตรง หากตั้งชื่อกำกวมจะสืบค้นความสัมพันธ์ไม่พบ |
+| **ขนาดไฟล์และโครงสร้างแบ่งเป็นสัดส่วน** | การแยกไฟล์ย่อยตามหน้าที่ช่วยลดการเกิด chunk ขนาดใหญ่เกินไป และป้องกันปัญหา context ปะปนกันข้ามโมดูล |
+| **โครงสร้างการ import ชัดเจน** | Graph mode อ่านความสัมพันธ์จากการเรียกโมดูลจริง ทำให้แกะรอย dependency ข้ามระบบได้อย่างถูกต้อง |
 
 ---
 
-## 📤 สำหรับส่งงาน (Google Form)
-1. อัดคลิป YouTube (≤ 5 นาที): เปิด Streamlit → ถามคำถามทั้ง Vector และ Graph mode → โชว์ Mode/Sources → กด Clear Chat
-2. zip โฟลเดอร์ `my_dataset/` → อัป Google Drive → ตั้งสิทธิ์ Anyone with the link → Viewer → ลิงก์ Dataset
-3. zip ทั้งโปรเจกต์ (ไฟล์ `.py` ทั้งหมด + `requirements.txt` + `README.md`) → อัป Google Drive → ตั้งสิทธิ์เดียวกัน → ลิงก์ Source Code
-4. นำ 3 ลิงก์ (YouTube, Dataset, Source Code) ไปกรอกใน Google Form
+## ⚙️ เทคนิคทางเทคนิคที่ช่วยเพิ่มประสิทธิภาพ
+
+- **Python-aware chunking** (`vector_rag.chunk_python_file`) — ตัด chunk ตามขอบเขตฟังก์ชันและคลาสจริงด้วย `ast` แทนการตัดตามความยาวคงที่ ทำให้บริบทของแต่ละ chunk สมบูรณ์ในตัวเอง
+- **Embedding task prefix** (`vector_rag._query_prefix` / `_document_prefix`) — ใส่ Prefix เช่น `"search_query: "` / `"search_document: "` ให้โดยอัตโนมัติเมื่อใช้โมเดลกลุ่ม Nomic เพื่อเพิ่มความแม่นยำในการค้นหา
+- **Batch graph finalize** — ประมวลผลและเชื่อมโยงความสัมพันธ์ข้ามไฟล์รวดเดียวหลังจากอัปโหลดไฟล์ทั้งหมดเสร็จสิ้น แทนการประมวลผลซ้ำทีละไฟล์
+- **Hybrid context allocation** (`hybrid_rag.py`) — รวมข้อความจากทั้ง Graph และ Vector ภายใต้งบตัวอักษรที่กำหนด (`config.HYBRID_CONTEXT_CHARS` โดย Graph ได้ไม่เกิน 60%) เพื่อไม่ให้เกินขีดจำกัด `num_ctx` ของโมเดล
+- **Score threshold** (`vector_rag.VectorStore.search`) — ตัด chunk ที่มี cosine similarity ต่ำกว่าเกณฑ์ (ค่าเริ่มต้น 0.30) และแจ้งผู้ใช้ทันทีเมื่อไม่พบข้อมูล ช่วยลดการเกิด hallucination
+- **MMR (Maximal Marginal Relevance)** (`vector_rag.VectorStore._mmr`) — คัดเลือก chunk ที่ตรงกับคำถามและมีความหลากหลาย ไม่ดึงเนื้อหาที่ซ้ำซ้อนกันมาแสดง
+- **Name collision resolution** (`graph_rag.CodeGraph._resolve_call`) — แก้ไขปัญหาชื่อฟังก์ชันซ้ำกันโดยตรวจสอบจาก statement การ import, method ภายใต้คลาส (`self`) และ type hints
+- **Multi-hop traversal** (`graph_rag.CodeGraph.traverse`) — ค้นหาผลกระทบของโค้ดแบบหลายระดับชั้น (BFS traversal) เพื่อวิเคราะห์ dependency chain เมื่อมีการแก้ไขฟังก์ชันหรือไฟล์
+
+---
+
+## 🎛️ ข้อแนะนำในการปรับแต่ง Settings
+
+- **Temperature ต่ำ (0.1–0.3):** ช่วยให้คำตอบยึดตามเนื้อหาที่ค้นพบจริง ลดการแต่งข้อมูลเพิ่มเติม
+- **Score threshold:** ปรับเพิ่ม (0.4–0.5) หากต้องการกรองข้อมูลให้ตรงประเด็นเข้มงวดยิ่งขึ้น หรือปรับลดลงหากระบบแจ้งว่าไม่พบข้อมูลบ่อยเกินไป
+- **MMR λ:** ค่า 0.7 เหมาะสำหรับการเน้นความตรงประเด็นเป็นหลัก ปรับเป็น 0.5 เมื่อต้องการคำตอบที่ครอบคลุมเนื้อหาหลายแง่มุม
+- **Graph depth:** กำหนดไว้ที่ 2–3 ชั้นเพื่อความรวดเร็วและความกระชับของ context
+- **top-k:** ค่าเริ่มต้น 4 ชิ้น เหมาะสมกับ dataset ขนาดเล็กถึงปานกลาง
+
+---
+
+## 🎬 ตัวอย่างคำถามสำหรับสาธิต
+
+### กรณีที่ 1: อัปโหลดชุดข้อมูล SmolML (`my_dataset/`)
+| โหมด | ตัวอย่างคำถาม | ผลลัพธ์และสิ่งที่ระบบแสดงผล |
+|---|---|---|
+| 🔀 Hybrid | `Adam optimizer ทำงานยังไง และถ้าแก้จะกระทบอะไร` | แสดงทั้งคำอธิบายการทำงาน (Vector) และรายการฟังก์ชันที่ได้รับผลกระทบ (Graph) |
+| 🔀 Hybrid | `SmolML คืออะไร` | ค้นหาและสรุปเนื้อหาจาก README ผ่าน Vector Search โดยอัตโนมัติ |
+| 🕸️ Graph | `ถ้าแก้ Value จะกระทบอะไรบ้าง` | แสดงสายสัมพันธ์และการสืบทอด/เรียกใช้งานคลาส `Value` แบบ Multi-hop |
+| 🕸️ Graph | `MLArray ถูกใครเรียกใช้` | แจกแจงโมดูลและคลาสอื่นๆ ภายในโปรเจกต์ที่นำ `MLArray` ไปใช้งาน |
+| 🕸️ Graph | `ถ้าแก้ smolml.utils.losses จะกระทบไฟล์ไหนบ้าง` | แสดงรายชื่อไฟล์ที่ import โมดูล losses ย้อนกลับ |
+| 🔎 Vector | `StandardScaler กับ MinMaxScaler ต่างกันยังไง` | ดึงเนื้อหาและ docstring มาเปรียบเทียบความแตกต่างอย่างชัดเจน |
+| 🔎 Vector | `ราคาทองคำวันนี้เท่าไหร่` | ระบบแจ้งว่าไม่พบข้อมูลที่เกี่ยวข้อง (ไม่กุคำตอบเนื่องจากติด Score Threshold) |
+
+### กรณีที่ 2: อัปโหลดซอร์สโค้ดของ Flowchat เอง
+| โหมด | ตัวอย่างคำถาม | ผลลัพธ์และสิ่งที่ระบบแสดงผล |
+|---|---|---|
+| 🔀 Hybrid | `read_file อัปโหลดไฟล์ยังไง และถ้าแก้จะกระทบอะไร` | แสดงโค้ดการจัดการไฟล์พร้อมแผนผังฟังก์ชันที่เรียกใช้งาน |
+| 🕸️ Graph | `ถ้าแก้ read_file จะกระทบอะไรบ้าง` | แสดงผลกระทบแบบ 2 ชั้น: `process_uploaded_files` → `app` |
+| 🕸️ Graph | `VectorStore.search ถูกใครเรียก` | ระบุคลาสและตำแหน่งที่เรียกใช้งานอย่างเจาะจง (ป้องกัน Name Collision) |
+| 🕸️️ Graph | `ถ้าแก้ config.py จะกระทบไฟล์ไหนบ้าง` | แสดงรายชื่อไฟล์ทั้งหมดที่ import config ไปใช้งาน (`app`, `file_utils`, `ollama_client`) |
